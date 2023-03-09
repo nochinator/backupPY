@@ -71,9 +71,12 @@ def backup():
 
     # get save data
     with open(locations) as f:
-        next(f)
-        destination_dir = next(f).strip()
-        source_dirs = [line.strip() for line in f]
+        try:
+            next(f).strip()
+            destination_dir = next(f).strip()
+            source_dirs = [line.strip() for line in f]
+        except:
+            pass
 
     # create folder and name, adds number to end if folder already exists
     backup_folder = os.path.join(destination_dir, today.strftime('%Y-%m-%d'))
@@ -276,10 +279,10 @@ else:
         backup_button.configure(state="disabled")
 
 
-    backup_button = Button(root, text="New Location", command=backup_now, bg="#423F3E", fg="#c7c0c0",
+    backup_button = Button(root, text="New Location", command=add_textbox, bg="#423F3E", fg="#c7c0c0",
                            activebackground="#171010")
     backup_button.grid(row=0, column=1, sticky="W", padx=7, pady=5)
-    Button(root, text='backup now', command=backup, bg="#423F3E", fg="#c7c0c0", activebackground="#171010") \
+    Button(root, text='backup now', command=backup_now, bg="#423F3E", fg="#c7c0c0", activebackground="#171010") \
         .grid(row=0, column=3, sticky="E", padx=7, pady=5)
     Button(root, text='Save', command=save, bg="#423F3E", fg="#c7c0c0", activebackground="#171010") \
         .grid(row=9, column=3, sticky="E", padx=7, pady=5)
@@ -308,5 +311,6 @@ else:
             fin_dir.insert(0, dir_fin)
         except IndexError:
             pass
+
 
     root.mainloop()
