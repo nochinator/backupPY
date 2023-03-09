@@ -4,7 +4,6 @@ import os
 import sys
 import threading
 import time
-import zipfile
 from tkinter import *
 from tkinter import filedialog
 import logging
@@ -13,7 +12,9 @@ import win32com.client
 
 # makes the path work automagicaly
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-locations = os.path.join(sys._MEIPASS, 'locations.txt')
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
+locations = os.path.join(script_dir, "locations.txt")
 
 
 def add_to_startup():
@@ -60,8 +61,8 @@ def save():
 
 
 def backup():
-    with open("log.log", 'w'):
-        pass
+    with open("log.log", 'w') as f:
+        f.write('')
     handler = logging.FileHandler('log.log')
     logger = logging.getLogger()
     logger.addHandler(handler)
@@ -98,7 +99,7 @@ def backup():
         # check if directory is valid
         if not os.path.isdir(source_dir):
             errors = True
-            logger.warning(f"backup of {source_dir} failed because is not a valid directory")
+            logger.exception(f"backup of {source_dir} failed because is not a valid directory")
 
         else:
             # try to perform backup
@@ -108,22 +109,16 @@ def backup():
 
             except Exception as e:
                 errors = True
-                logger.warning(f"backup of {source_dir} failed with error: {str(e)}")
+                logger.exception(f"backup of {source_dir} failed with error: {str(e)}")
 
     # Create a ZIP archive of the backup folder
     logger.info("zipping")
-    with zipfile.ZipFile(os.path.join(destination_dir, today.strftime('%Y-%m-%d') + '.zip'), 'w',
-                         zipfile.ZIP_DEFLATED) as zipf:
-        for root, dirs, files in os.walk(backup_folder):
-            for file in files:
-                zipf.write(os.path.join(root, file))
+    shutil.make_archive(os.path.join(destination_dir, today.strftime('%Y-%m-%d')), "zip", backup_folder)
 
-    # Print a message and display notification indicating that the backup was successful
+    # display a notification if the backup had errors
     if not errors:
         logger.info(
             f"Backup created at {backup_folder} and compressed to {os.path.join(destination_dir, today.strftime('%Y-%m-%d'))}.zip")
-        logger.removeHandler(handler)
-        handler.close()
         os.remove("log.log")
     else:
         logger.info("there were errors in the backup")
@@ -133,8 +128,6 @@ def backup():
                     " the file.",
             app_name='backupPY',
             timeout=10)
-        logger.removeHandler(handler)
-        handler.close()
     backup_button.configure(state="normal")
 
 
@@ -142,6 +135,7 @@ def backup():
 if not os.path.exists(locations):
     open(locations, 'w').close()
 
+# run if launched by windows startup
 if len(sys.argv) > 1 and sys.argv[1] == '--startup':
     # loop to run
     while True:
@@ -168,11 +162,13 @@ if len(sys.argv) > 1 and sys.argv[1] == '--startup':
             # Wait for some time before checking again
             time.sleep(1800)  # 30 minutes in seconds
 
+
+# show GUI if launched by user
 else:
     root = Tk()
 
     # set some configs
-    icon = os.path.join(sys._MEIPASS, 'backupPY.ico')
+    icon = os.path.join(script_dir, 'backupPY.ico')
     root.iconbitmap(icon)
     root.title('backupPY')
     root.configure(bg='#2B2B2B')
@@ -185,13 +181,20 @@ else:
     for i in range(7):
         root.rowconfigure(i + 1, weight=2)
 
+
+    # set color when buttons are pressed
+    def on_press():
+        buttons.configure(background='#362222')
+
+
     # set size
     root.geometry("530x300")
     root.resizable(False, True)
 
+    # set labe for radio buttons
     Label(root, text="day to backup on", bg="#2B2B2B", fg="#c7c0c0").grid(row=0, column=0, pady=5)
 
-    # radiobutton dictionary
+    # radio button dictionary
     v = StringVar(root, "1")
     values = {
         "Monday": "1",
@@ -203,57 +206,69 @@ else:
         "Sunday": "7"
     }
 
-
-    def on_press():
-        buttons.configure(background='#362222')
-
-
-    # create radiobuttons
+    # create radio buttons
     for (text, value) in values.items():
         buttons = Radiobutton(root, text=text, variable=v, value=value, indicator=0, bg="#362222", fg="#c7c0c0",
                               selectcolor="#171010", activebackground="#171010")
         buttons.grid(row=int(value), column=0, sticky="NSEW", padx=5, pady=1)
         buttons.bind('<Button-1>', lambda event: on_press())
 
+    # frame with title for locations to backup
     locations_frame = LabelFrame(root, text="Locations to Backup", bg="#2B2B2B", fg="#c7c0c0")
     locations_frame.grid(row=1, column=1, rowspan=8, columnspan=3, sticky="NSEW", padx=5)
 
+    # canvas to make actual box look
     locations_canvas = Canvas(locations_frame, bg="#2B2B2B")
     locations_canvas.pack(side=LEFT, fill=BOTH, expand=True)
 
+    # frame containing locations text boxes
     locations_frame_inner = Frame(locations_canvas, bg="#2B2B2B")
     locations_canvas.create_window((0, 0), window=locations_frame_inner, anchor="nw")
 
+    # scrollbar
     locations_scroll = Scrollbar(locations_frame, orient=VERTICAL, command=locations_canvas.yview)
     locations_scroll.pack(side=RIGHT, fill=Y)
 
+    # coloring for canvas
     locations_canvas.config(yscrollcommand=locations_scroll.set, highlightbackground='#2B2B2B',
                             highlightcolor='#2B2B2B')
-
+    # make scroll bar not finicky
     locations_scroll.bind_all("<MouseWheel>",
                               lambda event: locations_canvas.yview_scroll(-1 * (event.delta // 120), "units"))
 
+    # list for manageing rows
+    remove_buttons = []
 
+
+    # add textbox for locations
     def add_textbox(dir=None):
+        # text box
         new_entry = Entry(locations_frame_inner, width=50, bg="#423F3E", fg="#c7c0c0")
         new_entry.grid(row=len(remove_buttons), column=0, sticky="W")
+
+        # the "X" button
         remove_button = Button(locations_frame_inner, text="X", bg="#423F3E", fg="#c7c0c0", activebackground="#171010",
                                command=lambda: remove_textbox(new_entry, remove_button, browse_button))
         remove_button.grid(row=len(remove_buttons), column=1, padx=5, pady=5, sticky="E")
         remove_buttons.append(remove_button)
 
+        # the "Browse" button
         browse_button = Button(locations_frame_inner, text="Browse", bg="#423F3E", fg="#c7c0c0",
                                activebackground="#171010",
                                command=lambda: browse_directory(new_entry))
         browse_button.grid(row=len(remove_buttons) - 1, column=2, padx=0, pady=5, sticky="E")
 
+        # update canvas
         locations_canvas.update_idletasks()
+        # update scrollbar
         locations_canvas.config(scrollregion=locations_canvas.bbox("all"))
 
+        # prefill boxes if there is save data
         if dir is not None:
             new_entry.insert(0, dir)
 
 
+    # code for the browse button functionality
     def browse_directory(entry):
         directory = filedialog.askdirectory()
         if directory:
@@ -261,9 +276,7 @@ else:
             entry.insert(0, directory)
 
 
-    remove_buttons = []
-
-
+    # code to remove a text box row
     def remove_textbox(entry, button, browse):
         global remove_buttons
         i = remove_buttons.index(button)
@@ -272,31 +285,46 @@ else:
         button.destroy()
         browse.destroy()
 
-
+    # code to trigger a backup on backup button press
     def backup_now():
         backup_thread = threading.Thread(target=backup())
         backup_thread.start()
         backup_button.configure(state="disabled")
 
 
-    backup_button = Button(root, text="New Location", command=add_textbox, bg="#423F3E", fg="#c7c0c0",
-                           activebackground="#171010")
-    backup_button.grid(row=0, column=1, sticky="W", padx=7, pady=5)
-    Button(root, text='backup now', command=backup_now, bg="#423F3E", fg="#c7c0c0", activebackground="#171010") \
-        .grid(row=0, column=3, sticky="E", padx=7, pady=5)
-    Button(root, text='Save', command=save, bg="#423F3E", fg="#c7c0c0", activebackground="#171010") \
-        .grid(row=9, column=3, sticky="E", padx=7, pady=5)
+    # standard buttons in GUI
+    # new location button button
+    new_location_button = Button(root, text="New Location", command=add_textbox, bg="#423F3E", fg="#c7c0c0",
+                                 activebackground="#171010")
+    new_location_button.grid(row=0, column=1, sticky="W", padx=7, pady=5)
 
+    # backup now button
+    backup_button = Button(root, text='backup now', command=backup_now, bg="#423F3E", fg="#c7c0c0",
+                           activebackground="#171010")
+    backup_button.grid(row=0, column=3, sticky="E", padx=7, pady=5)
+
+    # save button
+    save_button = Button(root, text='Save', command=save, bg="#423F3E", fg="#c7c0c0", activebackground="#171010")
+    save_button.grid(row=9, column=3, sticky="E", padx=7, pady=5)
+
+    # the location to backup data
+    # label saying what the textbox is
     fin_dir_label = Label(root, text="location to backup to", bg="#2B2B2B", fg="#c7c0c0")
     fin_dir_label.grid(row=8, column=0)
+
+    # text box for location to backup to
     fin_dir = Entry(root, bg="#423F3E", fg="#c7c0c0")
     fin_dir.grid(row=9, column=0, columnspan=3, sticky="WE", padx=5, pady=5)
+
+    # browse button for backup location
     fin_dir_browse_button = Button(root, text="Browse", bg="#423F3E", fg="#c7c0c0", activebackground="#171010",
                                    command=lambda: browse_directory(fin_dir))
     fin_dir_browse_button.grid(row=9, column=3, padx=4, pady=5, sticky="W")
+
+    # clear button
+    # this is a filler button and will be replaced with the option to backup the data to multiple different locations
     clear_fin_dir_button = Button(root, text="Clear", command=lambda: fin_dir.delete(0, END), bg="#423F3E",
-                                  fg="#c7c0c0",
-                                  activebackground="#171010")
+                                  fg="#c7c0c0", activebackground="#171010")
     clear_fin_dir_button.grid(row=9, column=3, padx=55, pady=5, sticky="E")
 
     # fill in data from save file
@@ -311,6 +339,5 @@ else:
             fin_dir.insert(0, dir_fin)
         except IndexError:
             pass
-
 
     root.mainloop()
