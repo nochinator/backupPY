@@ -15,4 +15,4 @@ Currently backupPY only supports weekly repeat backups on one day but more optio
 I only support .zip files as the final backup product but raw folders will be coming *soon*™.
 The UI *may* have bugs in it however there should be no major program breaking bugs.
 
-## [download] (https://github.com/nochinator/backupPY/blob/main/backupPY.exe)
+## (download) [https://github.com/nochinator/backupPY/blob/main/backupPY.exe]
