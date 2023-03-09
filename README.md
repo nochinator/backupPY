@@ -15,4 +15,11 @@ Currently backupPY only supports weekly repeat backups on one day but more optio
 I only support .zip files as the final backup product but raw folders will be coming *soon*™.
 The UI *may* have bugs in it however there should be no major program breaking bugs.
 
+## build directions
+download the "backupPY.py" and "backupPY.ico", install pyinstaller with the command (in the command line) pip install pyinstaller, and then run the below commands. Replace "directory\files\downloaded\to" with the directory the files are at.
+
+- cd directory\files\downloaded\to
+
+- pyinstaller --noconsole --onefile --add-data "backupPY.ico" --icon="backupPY.ico" backupPY.py
+
 ## [download](https://github.com/nochinator/backupPY/raw/main/backupPY.exe)
