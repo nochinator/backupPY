@@ -136,7 +136,7 @@ if not os.path.exists(locations):
     open(locations, 'w').close()
 
 # run if launched by windows startup
-if len(sys.argv) > 1 and sys.argv[1] == '--startup':
+if len(sys.argv) > 1 and os.environ.get('WINDIR') is not None:
     # loop to run
     while True:
         # Define the source and destination directories
